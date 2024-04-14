@@ -7,14 +7,14 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from torchsummary import summary
 
-EPOCHS = 5000
+EPOCHS = 200
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ConvNet(torch.nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.dropout_rate = 0.3
+        self.dropout_rate = 0.5
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding='same')
         self.relu1 = torch.nn.ReLU()
         self.dropout1 = torch.nn.Dropout(self.dropout_rate)
@@ -37,9 +37,9 @@ class ConvNet(torch.nn.Module):
         self.flatten = torch.nn.Flatten()
         self.relu5 = torch.nn.ReLU()
 
-        self.fc1 = torch.nn.Linear(256 * 40 * 40, 20)
+        self.fc1 = torch.nn.Linear(256 * 40 * 40, 10)
         self.dropout5 = torch.nn.Dropout(self.dropout_rate)
-        self.fc2 = torch.nn.Linear(20, 1)
+        self.fc2 = torch.nn.Linear(10, 1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -73,6 +73,7 @@ augmentation = v2.Compose([
     v2.RandomVerticalFlip(p=0.3),
     v2.RandomRotation(10),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+    v2.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
     v2.GaussianBlur(kernel_size=3),
     v2.ToTensor()
 ])
