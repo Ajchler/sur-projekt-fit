@@ -9,7 +9,7 @@ from torchsummary import summary
 
 torch.manual_seed(0)
 
-EPOCHS = 500
+EPOCHS = 800
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -29,13 +29,13 @@ class ConvNet(torch.nn.Module):
         self.relu2 = torch.nn.ReLU()
         self.dropout2 = torch.nn.Dropout(self.dropout_rate)
 
-        self.conv3 = torch.nn.Conv2d(128, 128, kernel_size=3, stride=1, padding='same')
-        self.bn3 = torch.nn.BatchNorm2d(128)
+        self.conv3 = torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding='same')
+        self.bn3 = torch.nn.BatchNorm2d(256)
         self.relu3 = torch.nn.ReLU()
         self.dropout3 = torch.nn.Dropout(self.dropout_rate)
 
 
-        self.conv4 = torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding='same')
+        self.conv4 = torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding='same')
         self.bn4 = torch.nn.BatchNorm2d(256)
         self.relu4 = torch.nn.ReLU()
         self.dropout4 = torch.nn.Dropout(self.dropout_rate)
@@ -43,32 +43,38 @@ class ConvNet(torch.nn.Module):
         self.flatten = torch.nn.Flatten()
         self.relu5 = torch.nn.ReLU()
 
-        self.fc1 = torch.nn.Linear(256 * 40 * 40, 10)
+        self.fc1 = torch.nn.Linear(256 * 40 * 40, 30)
+        self.bn5 = torch.nn.BatchNorm1d(30)
         self.dropout5 = torch.nn.Dropout(self.dropout_rate)
-        self.fc2 = torch.nn.Linear(10, 1)
+        self.fc2 = torch.nn.Linear(30, 1)
 
     def forward(self, x):
         x = self.conv1(x)
+        x = self.bn1(x)
         x = self.relu1(x)
         x = self.dropout1(x)
 
         x = self.pool0(x)
 
         x = self.conv2(x)
+        x = self.bn2(x)
         x = self.relu2(x)
         x = self.dropout2(x)
 
         x = self.conv3(x)
+        x = self.bn3(x)
         x = self.relu3(x)
         x = self.dropout3(x)
 
         x = self.conv4(x)
+        x = self.bn4(x)
         x = self.relu4(x)
         x = self.dropout4(x)
 
         x = self.flatten(x)
 
         x = self.fc1(x)
+        x = self.bn5(x)
         x = self.dropout5(x)
         x = self.fc2(x)
         return x
@@ -81,8 +87,8 @@ augmentation = v2.Compose([
     v2.RandomRotation(10),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     v2.RandomGrayscale(p=0.1),
-    #v2.RandomPerspective(distortion_scale=0.2, p=0.2),
-    #v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
+    v2.RandomPerspective(distortion_scale=0.2, p=0.2),
+    v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
     v2.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
     v2.GaussianBlur(kernel_size=3),
     v2.ToTensor()
@@ -105,12 +111,13 @@ best_train_loss = 0
 best_model = None
 best_epoch = 0
 best_accuracy = 0
+best_train_accuracy = 0
 
 for epoch in range(EPOCHS):
     if epoch == 100:
         pass
     # train model
-    accuracy = 0
+    train_accuracy = 0
     train_loss = 0
     model.train()
     for i, train_batch in enumerate(train_loader):
@@ -124,17 +131,17 @@ for epoch in range(EPOCHS):
         loss.backward()
         optimizer.step()
         pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
-        accuracy += torch.sum(pred_labels == y).item()
+        train_accuracy += torch.sum(pred_labels == y).item()
 
-    accuracy /= len(train_dataset)
+    train_accuracy /= len(train_dataset)
 
     if (epoch % 10 == 0):
-        print(f"Epoch {epoch}, train_loss: {train_loss}, train accuracy: {accuracy}")
+        print(f"Epoch {epoch}, train_loss: {train_loss}, train accuracy: {train_accuracy}")
 
     # validate model
     missed = 0
     false_positives = 0
-    accuracy = 0
+    eval_accuracy = 0
     model.eval()
     val_loss = 0
     for i, val_batch in enumerate(val_loader):
@@ -146,26 +153,28 @@ for epoch in range(EPOCHS):
             loss = loss_fn(y_hat, y)
         val_loss += loss.item()
         pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
-        accuracy += torch.sum(pred_labels == y).item()
+        eval_accuracy += torch.sum(pred_labels == y).item()
         for i in range(len(y)):
             if pred_labels[i] != y[i] and y[i] == 1:
                 missed += 1
             if pred_labels[i] != y[i] and y[i] == 0:
                 false_positives += 1
 
-    accuracy /= len(val_dataset)
+    eval_accuracy /= len(val_dataset)
 
-    if val_loss < best_val_loss:
+    if val_loss > best_val_loss:
         best_val_loss = val_loss
         best_model = model.state_dict()
         best_epoch = epoch
-        best_accuracy = accuracy
+        best_accuracy = eval_accuracy
         best_train_loss = train_loss
+        best_train_accuracy = train_accuracy
 
     if (epoch % 10 == 0):
-        print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {accuracy}, missed: {missed}, false positives: {false_positives} \n")
+        print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {eval_accuracy}, missed: {missed}, false positives: {false_positives} \n")
 
 
-print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss}")
+print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss} and train accuracy: {best_train_accuracy} \
+      with missed: {missed} and false positives: {false_positives} \n")
 
 
