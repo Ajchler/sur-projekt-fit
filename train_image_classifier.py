@@ -7,7 +7,9 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from torchsummary import summary
 
-EPOCHS = 200
+torch.manual_seed(0)
+
+EPOCHS = 500
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -16,21 +18,25 @@ class ConvNet(torch.nn.Module):
         super(ConvNet, self).__init__()
         self.dropout_rate = 0.5
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding='same')
+        self.bn1 = torch.nn.BatchNorm2d(64)
         self.relu1 = torch.nn.ReLU()
         self.dropout1 = torch.nn.Dropout(self.dropout_rate)
 
         self.pool0 = torch.nn.MaxPool2d(kernel_size=2)
 
         self.conv2 = torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding='same')
+        self.bn2 = torch.nn.BatchNorm2d(128)
         self.relu2 = torch.nn.ReLU()
         self.dropout2 = torch.nn.Dropout(self.dropout_rate)
 
-        self.conv3 = torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding='same')
+        self.conv3 = torch.nn.Conv2d(128, 128, kernel_size=3, stride=1, padding='same')
+        self.bn3 = torch.nn.BatchNorm2d(128)
         self.relu3 = torch.nn.ReLU()
         self.dropout3 = torch.nn.Dropout(self.dropout_rate)
 
 
-        self.conv4 = torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding='same')
+        self.conv4 = torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding='same')
+        self.bn4 = torch.nn.BatchNorm2d(256)
         self.relu4 = torch.nn.ReLU()
         self.dropout4 = torch.nn.Dropout(self.dropout_rate)
 
@@ -70,10 +76,14 @@ class ConvNet(torch.nn.Module):
 
 augmentation = v2.Compose([
     v2.RandomResizedCrop(80, scale=(0.8, 1.0), ratio=(0.95, 1.05)),
-    v2.RandomVerticalFlip(p=0.3),
+    v2.RandomVerticalFlip(p=0.5),
+    v2.RandomHorizontalFlip(p=0.3),
     v2.RandomRotation(10),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    v2.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
+    v2.RandomGrayscale(p=0.1),
+    #v2.RandomPerspective(distortion_scale=0.2, p=0.2),
+    #v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
+    v2.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
     v2.GaussianBlur(kernel_size=3),
     v2.ToTensor()
 ])
@@ -88,8 +98,13 @@ model = ConvNet()
 summary(model, (3, 80, 80), device='cpu')
 model.to(device)
 optimizer = torch.optim.Adam(model.parameters())
-#loss_fn = torch.nn.CrossEntropyLoss()
 loss_fn = torch.nn.BCEWithLogitsLoss()
+
+best_val_loss = np.inf
+best_train_loss = 0
+best_model = None
+best_epoch = 0
+best_accuracy = 0
 
 for epoch in range(EPOCHS):
     if epoch == 100:
@@ -108,7 +123,7 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        pred_labels = (torch.sigmoid(y_hat) > 0.15).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
         accuracy += torch.sum(pred_labels == y).item()
 
     accuracy /= len(train_dataset)
@@ -118,6 +133,7 @@ for epoch in range(EPOCHS):
 
     # validate model
     missed = 0
+    false_positives = 0
     accuracy = 0
     model.eval()
     val_loss = 0
@@ -129,14 +145,27 @@ for epoch in range(EPOCHS):
             y_hat = model(x)
             loss = loss_fn(y_hat, y)
         val_loss += loss.item()
-        pred_labels = (torch.sigmoid(y_hat) > 0.15).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
         accuracy += torch.sum(pred_labels == y).item()
         for i in range(len(y)):
             if pred_labels[i] != y[i] and y[i] == 1:
                 missed += 1
+            if pred_labels[i] != y[i] and y[i] == 0:
+                false_positives += 1
 
     accuracy /= len(val_dataset)
+
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        best_model = model.state_dict()
+        best_epoch = epoch
+        best_accuracy = accuracy
+        best_train_loss = train_loss
+
     if (epoch % 10 == 0):
-        print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {accuracy}, missed: {missed} \n")
+        print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {accuracy}, missed: {missed}, false positives: {false_positives} \n")
+
+
+print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss}")
 
 
