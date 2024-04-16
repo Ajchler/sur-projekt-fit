@@ -9,14 +9,14 @@ from torchsummary import summary
 
 torch.manual_seed(0)
 
-EPOCHS = 800
+EPOCHS = 2000
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ConvNet(torch.nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.dropout_rate = 0.5
+        self.dropout_rate = 0.6
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding='same')
         self.bn1 = torch.nn.BatchNorm2d(64)
         self.relu1 = torch.nn.ReLU()
@@ -130,7 +130,7 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.22).int()
         train_accuracy += torch.sum(pred_labels == y).item()
 
     train_accuracy /= len(train_dataset)
@@ -152,7 +152,7 @@ for epoch in range(EPOCHS):
             y_hat = model(x)
             loss = loss_fn(y_hat, y)
         val_loss += loss.item()
-        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.22).int()
         eval_accuracy += torch.sum(pred_labels == y).item()
         for i in range(len(y)):
             if pred_labels[i] != y[i] and y[i] == 1:
@@ -162,7 +162,7 @@ for epoch in range(EPOCHS):
 
     eval_accuracy /= len(val_dataset)
 
-    if val_loss > best_val_loss:
+    if (eval_accuracy > best_accuracy) or (eval_accuracy == best_accuracy and val_loss < best_val_loss and train_accuracy > best_train_accuracy):
         best_val_loss = val_loss
         best_model = model.state_dict()
         best_epoch = epoch
