@@ -9,7 +9,7 @@ from torchsummary import summary
 
 torch.manual_seed(0)
 
-EPOCHS = 2000
+EPOCHS = 300
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -43,10 +43,10 @@ class ConvNet(torch.nn.Module):
         self.flatten = torch.nn.Flatten()
         self.relu5 = torch.nn.ReLU()
 
-        self.fc1 = torch.nn.Linear(256 * 40 * 40, 30)
-        self.bn5 = torch.nn.BatchNorm1d(30)
+        self.fc1 = torch.nn.Linear(256 * 40 * 40, 20)
+        self.bn5 = torch.nn.BatchNorm1d(20)
         self.dropout5 = torch.nn.Dropout(self.dropout_rate)
-        self.fc2 = torch.nn.Linear(30, 1)
+        self.fc2 = torch.nn.Linear(20, 1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -82,14 +82,14 @@ class ConvNet(torch.nn.Module):
 
 augmentation = v2.Compose([
     v2.RandomResizedCrop(80, scale=(0.8, 1.0), ratio=(0.95, 1.05)),
-    v2.RandomVerticalFlip(p=0.5),
+    v2.RandomVerticalFlip(p=0.3),
     v2.RandomHorizontalFlip(p=0.3),
     v2.RandomRotation(10),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     v2.RandomGrayscale(p=0.1),
-    v2.RandomPerspective(distortion_scale=0.2, p=0.2),
-    v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
-    v2.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
+    #v2.RandomPerspective(distortion_scale=0.2, p=0.2),
+    #v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
+    v2.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
     v2.GaussianBlur(kernel_size=3),
     v2.ToTensor()
 ])
@@ -103,7 +103,7 @@ val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 model = ConvNet()
 summary(model, (3, 80, 80), device='cpu')
 model.to(device)
-optimizer = torch.optim.Adam(model.parameters())
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0007)
 loss_fn = torch.nn.BCEWithLogitsLoss()
 
 best_val_loss = np.inf
@@ -130,12 +130,12 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        pred_labels = (torch.sigmoid(y_hat) > 0.22).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
         train_accuracy += torch.sum(pred_labels == y).item()
 
     train_accuracy /= len(train_dataset)
 
-    if (epoch % 10 == 0):
+    if (epoch % 1 == 0):
         print(f"Epoch {epoch}, train_loss: {train_loss}, train accuracy: {train_accuracy}")
 
     # validate model
@@ -152,7 +152,7 @@ for epoch in range(EPOCHS):
             y_hat = model(x)
             loss = loss_fn(y_hat, y)
         val_loss += loss.item()
-        pred_labels = (torch.sigmoid(y_hat) > 0.22).int()
+        pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
         eval_accuracy += torch.sum(pred_labels == y).item()
         for i in range(len(y)):
             if pred_labels[i] != y[i] and y[i] == 1:
@@ -169,11 +169,13 @@ for epoch in range(EPOCHS):
         best_accuracy = eval_accuracy
         best_train_loss = train_loss
         best_train_accuracy = train_accuracy
+        best_missed = missed
 
-    if (epoch % 10 == 0):
+    if (epoch % 1 == 0):
         print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {eval_accuracy}, missed: {missed}, false positives: {false_positives} \n")
 
 
+torch.save(best_model, "image_classifier.pkl")
 print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss} and train accuracy: {best_train_accuracy} \
       with missed: {missed} and false positives: {false_positives} \n")
 
