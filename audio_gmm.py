@@ -90,11 +90,16 @@ class Pipeline(torch.nn.Module):
         mfcc = self.mfcc(augmented)
         return mfcc
     
-def read_dataset(dataset, stack=True):
+def read_dataset(dataset, train=True):
+    # Read dataset, if training return stacked samples (without name), otherwise return tuples (name, sample)
     samples = []
     for sample in dataset:
-        samples.append(sample["data"][0].numpy().T)
-    if stack:
+        sample_data = sample["data"][0].numpy().T
+        if train:
+            samples.append(sample_data)
+        else:
+            samples.append((sample["name"], sample_data))
+    if train:
         return np.vstack(samples)
     return samples
 
@@ -105,15 +110,15 @@ def read_dataset_n(dataset, n=5):
         res.append(read_dataset(dataset=dataset))
     return np.vstack(res)
 
-def train_gmm(pipeline, tN, ntN):
+def train_gmm(pipeline, target_path, tN, non_target_path, ntN):
     print("Reading training datasets")
-    train_t = read_dataset_n(dataset=AudioDataset('data/target_train', transform=pipeline))
-    train_nt = read_dataset_n(dataset=AudioDataset('data/non_target_train', transform=pipeline))
+    train_t = read_dataset_n(dataset=AudioDataset(target_path, transform=pipeline))
+    train_nt = read_dataset_n(dataset=AudioDataset(non_target_path, transform=pipeline))
     print(f"Training target shape: {train_t.shape}")
     print(f"Traning non-target shape: {train_nt.shape}")
 
-    t_gmm = GaussianMixture(n_components=tN, init_params='random_from_data', verbose=2)
-    nt_gmm = GaussianMixture(n_components=ntN, init_params='random_from_data', verbose=2)
+    t_gmm = GaussianMixture(n_components=tN, verbose=2)
+    nt_gmm = GaussianMixture(n_components=ntN, verbose=2)
     print("\nFitting target GMM")
     t_gmm.fit(train_t)
     print("\nFitting non-target GMM")
@@ -138,41 +143,45 @@ def load_gmm(t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
     nt_gmm_file.close()
     return t_gmm, nt_gmm
 
-# Effects used for augmentation - see `man sox`
-aug_effects = [
-    Effect(p=0.4, effect="lowpass -1", parameters=[[200, 1000]]),
-    Effect(p=0.4, effect="highpass", parameters=[[800, 3000]]),
-    Effect(p=0.7, effect="tempo", parameters=[[0.7, 1.3]]),
-    Effect(p=0.3, effect="reverb", parameters=[[20, 50], [20, 50], [20, 40]]),
-    Effect(p=0.7, effect="gain", parameters=[[-5, 10]]),
-]
+def predict(pipeline, val_path):
+    val = read_dataset(dataset=AudioDataset(val_path, transform=pipeline), train=False)
+    res = []
+    for sample in val:
+        name = sample[0]
+        sample_data = sample[1]
+        # P(t) - P(nt) > 0 => target
+        score = sum(t_gmm.score_samples(sample_data)) - sum(nt_gmm.score_samples(sample_data))
+        res.append({"name": name, "score": score, "target": int(score > 0)})
+    return res
 
-tN = 7
-ntN = 20
-aug_pipeline = Pipeline(effects=aug_effects)
-t_gmm, nt_gmm = train_gmm(aug_pipeline, tN, ntN)
-save_gmm(t_gmm, nt_gmm)
-
-# First pipeline is used for training (augmentation), second for validation
-val_pipeline = Pipeline()
-
-val_t = read_dataset(dataset=AudioDataset('data/target_dev', transform=val_pipeline), stack=False)
-val_nt = read_dataset(dataset=AudioDataset('data/non_target_dev', transform=val_pipeline), stack=False)
-
-print()
-
-tscores = []
-for sample in val_t:
-    tscore = sum(t_gmm.score_samples(sample))
-    ntscore = sum(nt_gmm.score_samples(sample))
-    tscores.append(tscore - ntscore)
-
-print("Correcly classified target samples: ", sum([1 for score in tscores if score > 0]) / len(tscores))
-
-ntscores = []
-for sample in val_nt:
-    tscore = sum(t_gmm.score_samples(sample))
-    ntscore = sum(nt_gmm.score_samples(sample))
-    ntscores.append(tscore - ntscore)
+def print_predictions(pred):
+    from pathlib import Path
+    for p in pred:
+        print("{} {:.2f} {}".format(Path(p['name']).stem, p['score'], p['target']))
     
-print("Correcly classified non-target samples: ", sum([1 for score in ntscores if score < 0]) / len(ntscores))
+if __name__ == "__main__":
+    # Effects used for augmentation - see `man sox`
+    aug_effects = [
+        Effect(p=0.4, effect="lowpass -1", parameters=[[200, 1000]]),
+        Effect(p=0.4, effect="highpass", parameters=[[800, 3000]]),
+        Effect(p=0.7, effect="tempo", parameters=[[0.7, 1.3]]),
+        Effect(p=0.3, effect="reverb", parameters=[[20, 50], [20, 50], [20, 40]]),
+        Effect(p=0.7, effect="gain", parameters=[[-5, 10]]),
+    ]
+
+    tN = 7 # target components
+    ntN = 20 # non-target components
+    aug_pipeline = Pipeline(effects=aug_effects) # augmentation pipeline
+    t_gmm, nt_gmm = train_gmm(aug_pipeline, 'data/target_train', tN, 'data/non_target_train', ntN)
+    save_gmm(t_gmm, nt_gmm)
+    # t_gmm, nt_gmm = load_gmm()
+    
+    pipeline = Pipeline()
+    target_results = predict(pipeline, 'data/target_dev')
+    non_target_results = predict(pipeline, 'data/non_target_dev')
+    
+    print("Correct target predictions: ", sum([1 for r in target_results if r["target"] == 1]) / len(target_results))
+    print("Correct non-target predictions: ", sum([1 for r in non_target_results if r["target"] == 0]) / len(non_target_results))
+    
+    print_predictions(target_results)
+    print_predictions(non_target_results)
