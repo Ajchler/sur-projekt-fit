@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 import numpy as np
+import pickle as pkl
 
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import Dataset
@@ -31,9 +32,9 @@ class Effect():
         self.parameters = parameters
         
     def generate_parameters(self):
+        # Randomly generate parameters from specified range and append them to the effect
         effect = self.effect
         for i in range(len(self.parameters)):
-            # Randomly generate parameters from specified range
             if type(self.parameters[i][0]) == int:
                 effect += " " + str(torch.randint(self.parameters[i][0], self.parameters[i][1], (1,)).item())
             elif type(self.parameters[i][0]) == float:
@@ -57,6 +58,7 @@ class Pipeline(torch.nn.Module):
         # n_fft = number of samples in each window (at 256 with win_length 200 you get 56 zero values at the end of each window)
         # n_mels = number of mel filterbanks
         # n_mfcc = number of mfcc coefficients
+        # effects = list of effects to apply to the audio
         super(Pipeline, self).__init__()
         
         self.debug = debug
@@ -103,7 +105,40 @@ def read_dataset_n(dataset, n=5):
         res.append(read_dataset(dataset=dataset))
     return np.vstack(res)
 
-# Effects used for augmentation - see man sox
+def train_gmm(pipeline, tN, ntN):
+    print("Reading training datasets")
+    train_t = read_dataset_n(dataset=AudioDataset('data/target_train', transform=pipeline))
+    train_nt = read_dataset_n(dataset=AudioDataset('data/non_target_train', transform=pipeline))
+    print(f"Training target shape: {train_t.shape}")
+    print(f"Traning non-target shape: {train_nt.shape}")
+
+    t_gmm = GaussianMixture(n_components=tN, init_params='random_from_data', verbose=2)
+    nt_gmm = GaussianMixture(n_components=ntN, init_params='random_from_data', verbose=2)
+    print("\nFitting target GMM")
+    t_gmm.fit(train_t)
+    print("\nFitting non-target GMM")
+    nt_gmm.fit(train_nt)
+    
+    return t_gmm, nt_gmm
+
+def save_gmm(t_gmm, nt_gmm, t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
+    t_gmm_file = open(t_path, "wb")
+    nt_gmm_file = open(nt_path, "wb")
+    pkl.dump(t_gmm, t_gmm_file)
+    pkl.dump(nt_gmm, nt_gmm_file)
+    t_gmm_file.close()
+    nt_gmm_file.close()
+    
+def load_gmm(t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
+    t_gmm_file = open(t_path, "rb")
+    nt_gmm_file = open(nt_path, "rb")
+    t_gmm = pkl.load(t_gmm_file)
+    nt_gmm = pkl.load(nt_gmm_file)
+    t_gmm_file.close()
+    nt_gmm_file.close()
+    return t_gmm, nt_gmm
+
+# Effects used for augmentation - see `man sox`
 aug_effects = [
     Effect(p=0.4, effect="lowpass -1", parameters=[[200, 1000]]),
     Effect(p=0.4, effect="highpass", parameters=[[800, 3000]]),
@@ -112,26 +147,17 @@ aug_effects = [
     Effect(p=0.7, effect="gain", parameters=[[-5, 10]]),
 ]
 
-# First pipeline is used for training (augmentation), second for validation
+tN = 7
+ntN = 20
 aug_pipeline = Pipeline(effects=aug_effects)
-val_pipeline = Pipeline()
+t_gmm, nt_gmm = train_gmm(aug_pipeline, tN, ntN)
+save_gmm(t_gmm, nt_gmm)
 
-print("Reading datasets")
-train_t = read_dataset_n(dataset=AudioDataset('data/target_train', transform=aug_pipeline))
-train_nt = read_dataset_n(dataset=AudioDataset('data/non_target_train', transform=aug_pipeline))
+# First pipeline is used for training (augmentation), second for validation
+val_pipeline = Pipeline()
 
 val_t = read_dataset(dataset=AudioDataset('data/target_dev', transform=val_pipeline), stack=False)
 val_nt = read_dataset(dataset=AudioDataset('data/non_target_dev', transform=val_pipeline), stack=False)
-
-print(f"Training target shape: {train_t.shape}")
-print(f"Traning non-target shape: {train_nt.shape}")
-
-t_gmm = GaussianMixture(n_components=7, verbose=2)
-nt_gmm = GaussianMixture(n_components=20, verbose=2)
-print("\nFitting target GMM")
-t_gmm.fit(train_t)
-print("\nFitting non-target GMM")
-nt_gmm.fit(train_nt)
 
 print()
 
@@ -141,7 +167,6 @@ for sample in val_t:
     ntscore = sum(nt_gmm.score_samples(sample))
     tscores.append(tscore - ntscore)
 
-print(tscores)
 print("Correcly classified target samples: ", sum([1 for score in tscores if score > 0]) / len(tscores))
 
 ntscores = []
@@ -150,5 +175,4 @@ for sample in val_nt:
     ntscore = sum(nt_gmm.score_samples(sample))
     ntscores.append(tscore - ntscore)
     
-print(ntscores)
 print("Correcly classified non-target samples: ", sum([1 for score in ntscores if score < 0]) / len(ntscores))
