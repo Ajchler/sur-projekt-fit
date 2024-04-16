@@ -23,14 +23,14 @@ class AudioDataset(Dataset):
         if self.transform:
             audio = self.transform(audio)
         return {"name": self.files[idx], "data": audio}
-    
+
 class Effect():
     # Apply effect with given probability, parameters is a list of parameter ranges appended to the effect
     def __init__(self, p, effect, parameters=[]):
         self.prob = p
         self.effect = effect
         self.parameters = parameters
-        
+
     def generate_parameters(self):
         # Randomly generate parameters from specified range and append them to the effect
         effect = self.effect
@@ -42,7 +42,7 @@ class Effect():
             else:
                 raise ValueError("Parameter type not recognized")
         return effect
-    
+
     def apply(self, waveform, rate):
         effect = self.effect
         if torch.rand(1) < self.prob:
@@ -60,10 +60,10 @@ class Pipeline(torch.nn.Module):
         # n_mfcc = number of mfcc coefficients
         # effects = list of effects to apply to the audio
         super(Pipeline, self).__init__()
-        
+
         self.debug = debug
         self.debug_i = 0
-        
+
         self.out_freq = out_freq
         self.resample = torchaudio.transforms.Resample(orig_freq=in_freq, new_freq=out_freq)
         # Trim 1.8 seconds from the beginning and silence parts shorter than 0.5 seconds with 0.2% threshold from the end
@@ -71,7 +71,7 @@ class Pipeline(torch.nn.Module):
         self.effects = effects
         melargs = {"n_fft": n_fft, "n_mels": n_mels, "hop_length": win_hop, "win_length": win_length}
         self.mfcc = torchaudio.transforms.MFCC(n_mfcc=n_mfcc, sample_rate=out_freq, melkwargs=melargs)
-        
+
     def forward(self, x):
         waveform, sample_rate = x
         # Resample the audio
@@ -89,7 +89,7 @@ class Pipeline(torch.nn.Module):
         # Get MFCC coefficients
         mfcc = self.mfcc(augmented)
         return mfcc
-    
+
 def read_dataset(dataset, train=True):
     # Read dataset, if training return stacked samples (without name), otherwise return tuples (name, sample)
     samples = []
@@ -123,7 +123,7 @@ def train_gmm(pipeline, target_path, tN, non_target_path, ntN):
     t_gmm.fit(train_t)
     print("\nFitting non-target GMM")
     nt_gmm.fit(train_nt)
-    
+
     return t_gmm, nt_gmm
 
 def save_gmm(t_gmm, nt_gmm, t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
@@ -133,7 +133,7 @@ def save_gmm(t_gmm, nt_gmm, t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
     pkl.dump(nt_gmm, nt_gmm_file)
     t_gmm_file.close()
     nt_gmm_file.close()
-    
+
 def load_gmm(t_path='t_gmm.pkl', nt_path='nt_gmm.pkl'):
     t_gmm_file = open(t_path, "rb")
     nt_gmm_file = open(nt_path, "rb")
@@ -158,7 +158,7 @@ def print_predictions(pred):
     from pathlib import Path
     for p in pred:
         print("{} {:.2f} {}".format(Path(p['name']).stem, p['score'], p['target']))
-    
+
 if __name__ == "__main__":
     # Effects used for augmentation - see `man sox`
     aug_effects = [
@@ -172,16 +172,16 @@ if __name__ == "__main__":
     tN = 7 # target components
     ntN = 20 # non-target components
     aug_pipeline = Pipeline(effects=aug_effects) # augmentation pipeline
-    t_gmm, nt_gmm = train_gmm(aug_pipeline, 'data/target_train', tN, 'data/non_target_train', ntN)
+    t_gmm, nt_gmm = train_gmm(aug_pipeline, 'data/train/target_train', tN, 'data/train/non_target_train', ntN)
     save_gmm(t_gmm, nt_gmm)
     # t_gmm, nt_gmm = load_gmm()
-    
+
     pipeline = Pipeline()
-    target_results = predict(pipeline, 'data/target_dev')
-    non_target_results = predict(pipeline, 'data/non_target_dev')
-    
+    target_results = predict(pipeline, 'data/val/target_dev')
+    non_target_results = predict(pipeline, 'data/val/non_target_dev')
+
     print("Correct target predictions: ", sum([1 for r in target_results if r["target"] == 1]) / len(target_results))
     print("Correct non-target predictions: ", sum([1 for r in non_target_results if r["target"] == 0]) / len(non_target_results))
-    
+
     print_predictions(target_results)
     print_predictions(non_target_results)
