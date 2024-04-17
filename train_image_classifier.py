@@ -94,89 +94,91 @@ augmentation = v2.Compose([
     v2.ToTensor()
 ])
 
-train_dataset = datasets.ImageFolder(root="data/train", transform=augmentation)
-val_dataset = datasets.ImageFolder(root="data/val", transform=v2.Compose([v2.ToTensor()]))
+if __name__ == "__main__":
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    train_dataset = datasets.ImageFolder(root="data/train", transform=augmentation)
+    val_dataset = datasets.ImageFolder(root="data/val", transform=v2.Compose([v2.ToTensor()]))
 
-model = ConvNet()
-summary(model, (3, 80, 80), device='cpu')
-model.to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0007)
-loss_fn = torch.nn.BCEWithLogitsLoss()
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-best_val_loss = np.inf
-best_train_loss = 0
-best_model = None
-best_epoch = 0
-best_accuracy = 0
-best_train_accuracy = 0
+    model = ConvNet()
+    summary(model, (3, 80, 80), device='cpu')
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0007)
+    loss_fn = torch.nn.BCEWithLogitsLoss()
 
-for epoch in range(EPOCHS):
-    if epoch == 100:
-        pass
-    # train model
-    train_accuracy = 0
-    train_loss = 0
-    model.train()
-    for i, train_batch in enumerate(train_loader):
-        x, y = train_batch
-        y = y.unsqueeze(1).float()
-        x, y = x.to(device), y.to(device)
-        y_hat = model(x)
-        loss = loss_fn(y_hat, y)
-        train_loss += loss.item()
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
-        train_accuracy += torch.sum(pred_labels == y).item()
+    best_val_loss = np.inf
+    best_train_loss = 0
+    best_model = None
+    best_epoch = 0
+    best_accuracy = 0
+    best_train_accuracy = 0
 
-    train_accuracy /= len(train_dataset)
-
-    if (epoch % 1 == 0):
-        print(f"Epoch {epoch}, train_loss: {train_loss}, train accuracy: {train_accuracy}")
-
-    # validate model
-    missed = 0
-    false_positives = 0
-    eval_accuracy = 0
-    model.eval()
-    val_loss = 0
-    for i, val_batch in enumerate(val_loader):
-        x, y = val_batch
-        y = y.unsqueeze(1).float()
-        x, y = x.to(device), y.to(device)
-        with torch.no_grad():
+    for epoch in range(EPOCHS):
+        if epoch == 100:
+            pass
+        # train model
+        train_accuracy = 0
+        train_loss = 0
+        model.train()
+        for i, train_batch in enumerate(train_loader):
+            x, y = train_batch
+            y = y.unsqueeze(1).float()
+            x, y = x.to(device), y.to(device)
             y_hat = model(x)
             loss = loss_fn(y_hat, y)
-        val_loss += loss.item()
-        pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
-        eval_accuracy += torch.sum(pred_labels == y).item()
-        for i in range(len(y)):
-            if pred_labels[i] != y[i] and y[i] == 1:
-                missed += 1
-            if pred_labels[i] != y[i] and y[i] == 0:
-                false_positives += 1
+            train_loss += loss.item()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
+            train_accuracy += torch.sum(pred_labels == y).item()
 
-    eval_accuracy /= len(val_dataset)
+        train_accuracy /= len(train_dataset)
 
-    if (eval_accuracy > best_accuracy) or (eval_accuracy == best_accuracy and val_loss < best_val_loss and train_accuracy > best_train_accuracy):
-        best_val_loss = val_loss
-        best_model = model.state_dict()
-        best_epoch = epoch
-        best_accuracy = eval_accuracy
-        best_train_loss = train_loss
-        best_train_accuracy = train_accuracy
-        best_missed = missed
+        if (epoch % 1 == 0):
+            print(f"Epoch {epoch}, train_loss: {train_loss}, train accuracy: {train_accuracy}")
 
-    if (epoch % 1 == 0):
-        print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {eval_accuracy}, missed: {missed}, false positives: {false_positives} \n")
+        # validate model
+        missed = 0
+        false_positives = 0
+        eval_accuracy = 0
+        model.eval()
+        val_loss = 0
+        for i, val_batch in enumerate(val_loader):
+            x, y = val_batch
+            y = y.unsqueeze(1).float()
+            x, y = x.to(device), y.to(device)
+            with torch.no_grad():
+                y_hat = model(x)
+                loss = loss_fn(y_hat, y)
+            val_loss += loss.item()
+            pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
+            eval_accuracy += torch.sum(pred_labels == y).item()
+            for i in range(len(y)):
+                if pred_labels[i] != y[i] and y[i] == 1:
+                    missed += 1
+                if pred_labels[i] != y[i] and y[i] == 0:
+                    false_positives += 1
+
+        eval_accuracy /= len(val_dataset)
+
+        if (eval_accuracy > best_accuracy) or (eval_accuracy == best_accuracy and val_loss < best_val_loss and train_accuracy > best_train_accuracy):
+            best_val_loss = val_loss
+            best_model = model.state_dict()
+            best_epoch = epoch
+            best_accuracy = eval_accuracy
+            best_train_loss = train_loss
+            best_train_accuracy = train_accuracy
+            best_missed = missed
+
+        if (epoch % 1 == 0):
+            print(f"Epoch {epoch}, val_loss: {val_loss}, val accuracy: {eval_accuracy}, missed: {missed}, false positives: {false_positives} \n")
 
 
-torch.save(best_model, "image_classifier.pkl")
-print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss} and train accuracy: {best_train_accuracy} \
-      with missed: {missed} and false positives: {false_positives} \n")
+    torch.save(best_model, "image_classifier.pkl")
+    print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss} and train accuracy: {best_train_accuracy} \
+        with missed: {missed} and false positives: {false_positives} \n")
 
 
