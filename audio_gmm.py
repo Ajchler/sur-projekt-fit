@@ -64,11 +64,12 @@ class Pipeline(torch.nn.Module):
         self.debug = debug
         self.debug_i = 0
 
+        self.effects = effects
         self.out_freq = out_freq
+
         self.resample = torchaudio.transforms.Resample(orig_freq=in_freq, new_freq=out_freq)
         # Trim 1.8 seconds from the beginning and silence parts shorter than 0.5 seconds with 0.2% threshold from the end
-        self.trim_params = [['trim', '1.8'], ['reverse'], ['silence', '1', '0.5', '0.2%'], ['reverse']]
-        self.effects = effects
+        self.trim_params = [['trim', '1.8'], ['reverse'], ['silence', '1', '0.3', '0.3%'], ['reverse']]
         melargs = {"n_fft": n_fft, "n_mels": n_mels, "hop_length": win_hop, "win_length": win_length}
         self.mfcc = torchaudio.transforms.MFCC(n_mfcc=n_mfcc, sample_rate=out_freq, melkwargs=melargs)
 
@@ -79,6 +80,8 @@ class Pipeline(torch.nn.Module):
         sample_rate = self.out_freq
         # Trim silent parts from the beginning and the end of the audio
         trimmed, _ = torchaudio.sox_effects.apply_effects_tensor(resampled, sample_rate, self.trim_params)
+        if (trimmed.shape[1] < 1):
+            trimmed, _ = torchaudio.sox_effects.apply_effects_tensor(resampled, sample_rate, [self.trim_params[0]])
         # Apply effects
         augmented = trimmed
         for effect in self.effects:
@@ -103,7 +106,7 @@ def read_dataset(dataset, train=True):
         return np.vstack(samples)
     return samples
 
-def read_dataset_n(dataset, n=5):
+def read_dataset_n(dataset, n=1):
     # Read dataset N times (apply different augmentations)
     res = []
     for _ in range(n):
@@ -165,8 +168,8 @@ if __name__ == "__main__":
         Effect(p=0.4, effect="lowpass -1", parameters=[[200, 1000]]),
         Effect(p=0.4, effect="highpass", parameters=[[800, 3000]]),
         Effect(p=0.7, effect="tempo", parameters=[[0.7, 1.3]]),
-        Effect(p=0.3, effect="reverb", parameters=[[20, 50], [20, 50], [20, 40]]),
-        Effect(p=0.7, effect="gain", parameters=[[-5, 10]]),
+        Effect(p=0.2, effect="reverb", parameters=[[20, 50], [20, 50], [20, 40]]),
+        Effect(p=0.6, effect="gain", parameters=[[-5, 10]]),
     ]
 
     tN = 7 # target components
@@ -183,5 +186,5 @@ if __name__ == "__main__":
     print("Correct target predictions: ", sum([1 for r in target_results if r["target"] == 1]) / len(target_results))
     print("Correct non-target predictions: ", sum([1 for r in non_target_results if r["target"] == 0]) / len(non_target_results))
 
-    print_predictions(target_results)
-    print_predictions(non_target_results)
+    # print_predictions(target_results)
+    # print_predictions(non_target_results)

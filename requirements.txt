@@ -3,3 +3,4 @@ PySoundFile==0.9.0.post1
 sox==1.5.0
 torch==2.2.2
 torchaudio==2.2.2
+scikit-learn==1.4.2
