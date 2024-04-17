@@ -49,42 +49,58 @@ optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 pipeline = Pipeline()
 train_audio_non_target = AudioDataset("data/train/non_target_train", transform=pipeline)
 train_audio_target = AudioDataset("data/train/target_train", transform=pipeline)
-audio_data_non_target = []
-audio_data_target = []
-for i in range(5):
+audio_data_non_target_train = []
+audio_data_target_train = []
+for i in range(1):
     a_ntarget = read_dataset(train_audio_non_target, train=False)
-    audio_data_non_target += ([x[1] for x in a_ntarget])
+    audio_data_non_target_train += ([x[1] for x in a_ntarget])
     a_target = read_dataset(train_audio_target, train=False)
-    audio_data_target += ([x[1] for x in a_target])
-combined_audio_data = audio_data_non_target + audio_data_target
+    audio_data_target_train += ([x[1] for x in a_target])
+combined_audio_data_train = audio_data_non_target_train + audio_data_target_train
+
+val_audio_non_target = AudioDataset("data/val/non_target_val", transform=pipeline)
+val_audio_target = AudioDataset("data/val/target_val", transform=pipeline)
+audio_data_non_target_val = []
+audio_data_target_val = []
+audio_data_non_target_train = [x[1] for x in read_dataset(val_audio_non_target, train=False)]
+audio_data_target_val = [x[1] for x in read_dataset(val_audio_target, train=False)]
+
 
 train_image_dataset = datasets.ImageFolder(root="data/train", transform=transforms.Compose([transforms.ToTensor()]))
-train_image_dataset = torch.utils.data.ConcatDataset([train_image_dataset] * 5)
+train_image_dataset = torch.utils.data.ConcatDataset([train_image_dataset] * 1)
 train_images = [x[0].numpy() for x in train_image_dataset]
-targets = [x[1] for x in train_image_dataset]
+targets_train = [x[1] for x in train_image_dataset]
+
+val_image_dataset = datasets.ImageFolder(root="data/val", transform=transforms.Compose([transforms.ToTensor()]))
+train_image_dataset = torch.utils.data.ConcatDataset([val_image_dataset] * 1)
+val_images = [x[0].numpy() for x in val_image_dataset]
+targets_val = [x[1] for x in val_image_dataset]
 
 cur_pos = 0
 for i in range(EPOCHS):
     shuffled_audio = []
     shuffled_images = []
     shuffled_targets = []
-    idx = np.random.permutation(len(combined_audio_data))
-    for i in range(len(idx)):
-        shuffled_audio.append(combined_audio_data[idx[i]])
-        shuffled_images.append(train_images[idx[i]])
-        shuffled_targets.append(targets[idx[i]])
+    idx = np.random.permutation(len(combined_audio_data_train))
+    for j in range(len(idx)):
+        shuffled_audio.append(combined_audio_data_train[idx[j]])
+        shuffled_images.append(train_images[idx[j]])
+        shuffled_targets.append(targets_train[idx[j]])
 
     model.train()
     while cur_pos <= len(idx):
-        audio_batch = combined_audio_data[cur_pos:cur_pos + 32]
+        audio_batch = combined_audio_data_train[cur_pos:cur_pos + 32]
         image_batch = train_images[cur_pos:cur_pos + 32]
         audio_batch = audio_batch
         image_batch = torch.tensor(image_batch)
-        output = model(audio_batch, image_batch)
-        targets = torch.tensor(shuffled_targets[cur_pos:cur_pos + 32], dtype=torch.float32).view(-1, 1)
-        loss = loss_fn(output, targets)
+        y_hat = model(audio_batch, image_batch)
+        y = torch.tensor(shuffled_targets[cur_pos:cur_pos + 32], dtype=torch.float32).view(-1, 1)
+        loss = loss_fn(y_hat, y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         cur_pos += 32
+
+    model.eval()
+
 
