@@ -1,4 +1,4 @@
-from audio_gmm import train_gmm, load_gmm, read_dataset, AudioDataset, Pipeline
+from audio_gmm import load_gmm, read_dataset, AudioDataset, Pipeline
 from train_image_classifier import ConvNet
 import numpy as np
 from torchvision import datasets, transforms
@@ -50,23 +50,23 @@ model = CombinedClassifier()
 loss_fn = torch.nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 pipeline = Pipeline()
-train_audio_non_target = AudioDataset("data/train/non_target_train", transform=pipeline)
-train_audio_target = AudioDataset("data/train/target_train", transform=pipeline)
+train_audio_non_target = AudioDataset("data/train/non_target_train")
+train_audio_target = AudioDataset("data/train/target_train")
 audio_data_non_target_train = []
 audio_data_target_train = []
 for i in range(1):
-    a_ntarget = read_dataset(train_audio_non_target, train=False)
+    a_ntarget = read_dataset(train_audio_non_target, pipeline, train=False)
     audio_data_non_target_train += ([x[1] for x in a_ntarget])
-    a_target = read_dataset(train_audio_target, train=False)
+    a_target = read_dataset(train_audio_target, pipeline, train=False)
     audio_data_target_train += ([x[1] for x in a_target])
 combined_audio_data_train = audio_data_non_target_train + audio_data_target_train
 
-val_audio_non_target = AudioDataset("data/val/non_target_dev", transform=pipeline)
-val_audio_target = AudioDataset("data/val/target_dev", transform=pipeline)
+val_audio_non_target = AudioDataset("data/val/non_target_dev")
+val_audio_target = AudioDataset("data/val/target_dev")
 audio_data_non_target_val = []
 audio_data_target_val = []
-audio_data_non_target_val = [x[1] for x in read_dataset(val_audio_non_target, train=False)]
-audio_data_target_val = [x[1] for x in read_dataset(val_audio_target, train=False)]
+audio_data_non_target_val = [x[1] for x in read_dataset(val_audio_non_target, pipeline, train=False)]
+audio_data_target_val = [x[1] for x in read_dataset(val_audio_target, pipeline, train=False)]
 combined_audio_data_val = audio_data_non_target_val + audio_data_target_val
 
 
