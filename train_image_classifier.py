@@ -7,9 +7,9 @@ from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 from torchsummary import summary
 
-torch.manual_seed(0)
+torch.manual_seed(13)
 
-EPOCHS = 300
+EPOCHS = 250
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     loss_fn = torch.nn.BCEWithLogitsLoss()
 
     best_val_loss = np.inf
-    best_train_loss = 0
+    best_train_loss = np.inf
     best_model = None
     best_epoch = 0
     best_accuracy = 0
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
+            pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
             train_accuracy += torch.sum(pred_labels == y).item()
 
         train_accuracy /= len(train_dataset)
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                 y_hat = model(x)
                 loss = loss_fn(y_hat, y)
             val_loss += loss.item()
-            pred_labels = (torch.sigmoid(y_hat) > 0.25).int()
+            pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
             eval_accuracy += torch.sum(pred_labels == y).item()
             for i in range(len(y)):
                 if pred_labels[i] != y[i] and y[i] == 1:
@@ -164,7 +164,8 @@ if __name__ == "__main__":
 
         eval_accuracy /= len(val_dataset)
 
-        if (eval_accuracy > best_accuracy) or (eval_accuracy == best_accuracy and val_loss < best_val_loss and train_accuracy > best_train_accuracy):
+        #if (eval_accuracy > best_accuracy) or (eval_accuracy == best_accuracy and val_loss < best_val_loss and train_accuracy > best_train_accuracy):
+        if val_loss < best_val_loss and train_loss < best_train_loss:
             best_val_loss = val_loss
             best_model = model.state_dict()
             best_epoch = epoch
@@ -179,6 +180,43 @@ if __name__ == "__main__":
 
     torch.save(best_model, "image_classifier.pkl")
     print(f"Best model at epoch {best_epoch}, val_loss: {best_val_loss}, val accuracy: {best_accuracy} with train loss: {best_train_loss} and train accuracy: {best_train_accuracy} \
-        with missed: {missed} and false positives: {false_positives} \n")
+        with missed: {best_missed} and false positives: {false_positives} \n")
 
 
+    model2 = ConvNet()
+    model2.load_state_dict(torch.load("image_classifier.pkl"))
+    model2.eval()
+    model2.to(device)
+    missed = 0
+    false_positives = 0
+    for val_batch in train_loader:
+        x, y = val_batch
+        y = y.unsqueeze(1).float()
+        x, y = x.to(device), y.to(device)
+        with torch.no_grad():
+            y_hat = model2(x)
+        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
+        for i in range(len(y)):
+            if pred_labels[i] != y[i] and y[i] == 1:
+                missed += 1
+            if pred_labels[i] != y[i] and y[i] == 0:
+                false_positives += 1
+
+    print(f"Final missed: {missed}, false positives: {false_positives}")
+
+    missed = 0
+    false_positives = 0
+    for val_batch in val_loader:
+        x, y = val_batch
+        y = y.unsqueeze(1).float()
+        x, y = x.to(device), y.to(device)
+        with torch.no_grad():
+            y_hat = model2(x)
+        pred_labels = (torch.sigmoid(y_hat) > 0.2).int()
+        for i in range(len(y)):
+            if pred_labels[i] != y[i] and y[i] == 1:
+                missed += 1
+            if pred_labels[i] != y[i] and y[i] == 0:
+                false_positives += 1
+
+    print(f"Final missed: {missed}, false positives: {false_positives}")
