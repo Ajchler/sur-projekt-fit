@@ -1,0 +1,60 @@
+Reading datasets
+
+Batch 0
+Train target shape: (126365, 13), train non-target shape: (384364, 13)
+Fitting target GMM
+Fitting non-target GMM
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.8961038961038961
+Augmented data
+Correct target predictions:  0.9166666666666666
+Correct non-target predictions:  0.9090909090909091
+
+Batch 1
+Train target shape: (132141, 13), train non-target shape: (406958, 13)
+Fitting target GMM
+Fitting non-target GMM
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.935064935064935
+Augmented data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.922077922077922
+
+Batch 2
+Train target shape: (147293, 13), train non-target shape: (363640, 13)
+Fitting target GMM
+Fitting non-target GMM
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.961038961038961
+Augmented data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.935064935064935
+
+Batch 3
+Train target shape: (123596, 13), train non-target shape: (379454, 13)
+Fitting target GMM
+Fitting non-target GMM
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.8831168831168831
+Augmented data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.935064935064935
+
+Batch 4
+Train target shape: (153181, 13), train non-target shape: (391594, 13)
+Fitting target GMM
+Fitting non-target GMM
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.8701298701298701
+Augmented data
+Correct target predictions:  0.9166666666666666
+Correct non-target predictions:  0.961038961038961
+
+Overall
+Default target accuracy: 1.0, non-target accuracy: 0.909090909090909
+Augmented target accuracy: 0.9666666666666666, non-target accuracy: 0.9324675324675324

@@ -1,0 +1,116 @@
+Reading datasets
+
+Batch 0
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8333333333333334
+More augmented data
+Correct target predictions:  0.8
+Correct non-target predictions:  0.6
+
+Batch 1
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.6
+Correct non-target predictions:  0.8666666666666667
+More augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.6833333333333333
+
+Batch 2
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.7
+Correct non-target predictions:  0.7666666666666667
+More augmented data
+Correct target predictions:  0.7
+Correct non-target predictions:  0.7
+
+Batch 3
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.75
+More augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.7
+
+Batch 4
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.7
+Correct non-target predictions:  0.8333333333333334
+More augmented data
+Correct target predictions:  0.7
+Correct non-target predictions:  0.6166666666666667
+
+Batch 5
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8166666666666667
+More augmented data
+Correct target predictions:  0.7
+Correct non-target predictions:  0.65
+
+Batch 6
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8
+More augmented data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.5833333333333334
+
+Batch 7
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8166666666666667
+More augmented data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.7666666666666667
+
+Batch 8
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8333333333333334
+More augmented data
+Correct target predictions:  0.6
+Correct non-target predictions:  0.6333333333333333
+
+Batch 9
+Default data
+Correct target predictions:  1.0
+Correct non-target predictions:  0.9333333333333333
+Augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.8
+More augmented data
+Correct target predictions:  0.9
+Correct non-target predictions:  0.65
+
+Overall
+Default target accuracy: 1.0, non-target accuracy: 0.9333333333333333
+Augmented target accuracy: 0.8300000000000001, non-target accuracy: 0.8116666666666665
+More Augmented target accuracy: 0.82, non-target accuracy: 0.6583333333333334
