@@ -4,8 +4,8 @@ from pathlib import Path
 from torchvision import datasets
 from torchvision.transforms import v2
 from torch.utils.data import DataLoader
-from audio_gmm import AudioDataset, Pipeline, read_dataset, load_gmm, predict
-from train_image_classifier import ConvNet
+from train_audio_gmm import AudioDataset, Pipeline, read_dataset, load_gmm, predict
+from train_image_cnn import ConvNet
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -20,7 +20,7 @@ def image_eval():
     image_classifier = ConvNet()
     image_classifier.load_state_dict(torch.load('image_classifier.pkl', map_location=torch.device(device)))
     image_classifier.eval()
-    image_classifier.to('cuda:0')
+    image_classifier.to(device)
     pred = []
     for i, eval_batch in enumerate(eval_loader):
         x, _ = eval_batch
@@ -39,7 +39,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--audio", action="store_true")
     parser.add_argument("--image", action="store_true")
-    parser.add_argument("--combined", action="store_true")
     args = parser.parse_args()
 
     if args.audio:
@@ -47,4 +46,4 @@ if __name__ == "__main__":
     elif args.image:
         print_predictions(image_eval())
     else:
-        raise NotImplementedError("Combined not implemented yet.")
+        print("Please specify --audio or --image")

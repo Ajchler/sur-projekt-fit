@@ -1,5 +1,5 @@
-from audio_gmm import load_gmm, read_dataset, AudioDataset, Pipeline
-from train_image_classifier import ConvNet
+from train_audio_gmm import load_gmm, read_dataset, AudioDataset, Pipeline
+from train_image_cnn import ConvNet
 import numpy as np
 from torchvision import datasets, transforms
 import torch

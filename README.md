@@ -17,12 +17,12 @@ sudo apt install libsox-dev
 
 Training the audio model (the model is stored in `audio_classifier.pkl`):
 ```
-python audio_gmm.py
+python train_audio_gmm.py
 ```
 
 Training the image model (the model is stored in `image_classifier.pkl`):
 ```
-python train_image_classifier.py
+python train_image_cnn.py
 ```
 
 Running evaluation:
