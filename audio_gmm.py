@@ -149,11 +149,6 @@ def predict(t_gmm, nt_gmm, data):
         res.append({"name": name, "score": score, "target": int(score > 0)})
     return res
 
-def print_predictions(pred):
-    from pathlib import Path
-    for p in pred:
-        print("{} {:.2f} {}".format(Path(p['name']).stem, p['score'], p['target']))
-
 def test_pipeline(pipeline, t_data, nt_data):
     val_t = read_dataset(t_data, pipeline, False)
     val_nt = read_dataset(nt_data, pipeline, False)
