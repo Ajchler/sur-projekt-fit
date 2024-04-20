@@ -9,14 +9,14 @@ from torchsummary import summary
 
 torch.manual_seed(13)
 
-EPOCHS = 250
+EPOCHS = 150
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ConvNet(torch.nn.Module):
     def __init__(self):
         super(ConvNet, self).__init__()
-        self.dropout_rate = 0.6
+        self.dropout_rate = 0.4
         self.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding='same')
         self.bn1 = torch.nn.BatchNorm2d(64)
         self.relu1 = torch.nn.ReLU()
@@ -29,24 +29,24 @@ class ConvNet(torch.nn.Module):
         self.relu2 = torch.nn.ReLU()
         self.dropout2 = torch.nn.Dropout(self.dropout_rate)
 
-        self.conv3 = torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding='same')
-        self.bn3 = torch.nn.BatchNorm2d(256)
+        self.conv3 = torch.nn.Conv2d(128, 64, kernel_size=3, stride=1, padding='same')
+        self.bn3 = torch.nn.BatchNorm2d(64)
         self.relu3 = torch.nn.ReLU()
         self.dropout3 = torch.nn.Dropout(self.dropout_rate)
 
 
-        self.conv4 = torch.nn.Conv2d(256, 256, kernel_size=3, stride=1, padding='same')
-        self.bn4 = torch.nn.BatchNorm2d(256)
+        self.conv4 = torch.nn.Conv2d(64, 32, kernel_size=3, stride=1, padding='same')
+        self.bn4 = torch.nn.BatchNorm2d(32)
         self.relu4 = torch.nn.ReLU()
         self.dropout4 = torch.nn.Dropout(self.dropout_rate)
 
         self.flatten = torch.nn.Flatten()
         self.relu5 = torch.nn.ReLU()
 
-        self.fc1 = torch.nn.Linear(256 * 40 * 40, 20)
-        self.bn5 = torch.nn.BatchNorm1d(20)
+        self.fc1 = torch.nn.Linear(32 * 40 * 40, 40)
+        self.bn5 = torch.nn.BatchNorm1d(40)
         self.dropout5 = torch.nn.Dropout(self.dropout_rate)
-        self.fc2 = torch.nn.Linear(20, 1)
+        self.fc2 = torch.nn.Linear(40, 1)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -83,10 +83,10 @@ class ConvNet(torch.nn.Module):
 augmentation = v2.Compose([
     v2.RandomResizedCrop(80, scale=(0.8, 1.0), ratio=(0.95, 1.05)),
     v2.RandomVerticalFlip(p=0.3),
-    v2.RandomHorizontalFlip(p=0.3),
+    #v2.RandomHorizontalFlip(p=0.3),
     v2.RandomRotation(10),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-    v2.RandomGrayscale(p=0.1),
+    #v2.RandomGrayscale(p=0.1),
     #v2.RandomPerspective(distortion_scale=0.2, p=0.2),
     #v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
     v2.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     model = ConvNet()
     summary(model, (3, 80, 80), device='cpu')
     model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0007)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
     loss_fn = torch.nn.BCEWithLogitsLoss()
 
     best_val_loss = np.inf

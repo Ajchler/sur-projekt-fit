@@ -20,6 +20,7 @@ def image_eval():
     image_classifier = ConvNet()
     image_classifier.load_state_dict(torch.load('image_classifier.pkl', map_location=torch.device(device)))
     image_classifier.eval()
+    image_classifier.to('cuda:0')
     pred = []
     for i, eval_batch in enumerate(eval_loader):
         x, _ = eval_batch
