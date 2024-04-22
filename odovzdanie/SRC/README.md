@@ -1,6 +1,6 @@
 # SUR projekt
 
-Authors: Vojtech Eichler (xeich01), Adam Zvara (xzvara01)<br>
+Authors: Vojtech Eichler (xeichl01), Adam Zvara (xzvara01)<br>
 Date: 04/2024
 
 # How to run
